@@ -1,0 +1,48 @@
+[audio]
+sample_rate = 16000
+channels = 1
+format = "s16le"
+frame_ms = 30
+latency_msec = 200
+# 留空则自动用默认 sink 推导 <sink>.monitor
+# source = "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor"
+
+[vad]
+aggressiveness = 2
+min_speech_ms = 250
+min_silence_ms = 500
+padding_ms = 200
+max_segment_ms = 8000
+
+[stt]
+# 显存不足可改 small.en / base.en
+model = "large-v3-turbo"
+device = "cuda"
+# 显存紧张可用 "int8_float16"；CPU 回退用 "int8"
+compute_type = "float16"
+language = "en"
+beam_size = 5
+vad_filter = true
+condition_on_previous_text = false
+no_speech_threshold = 0.6
+log_prob_threshold = -1.0
+
+[translate]
+# 程序会请求 <base_url>/chat/completions，所以这里要带 /v1
+base_url = "http://127.0.0.1:8000/v1"
+api_key = "not-needed"
+# 必须与本地 LLM 服务 /v1/models 返回的 id 一致
+model = "qwen2.5-7b-instruct"
+temperature = 0.2
+max_tokens = 512
+timeout = 30.0
+
+[ui]
+font_size = 28
+width_ratio = 0.8
+band_height = 220
+bottom_margin = 60
+max_lines = 3
+background = "rgba(0, 0, 0, 160)"
+text_color = "#ffffff"
+screen = 0
