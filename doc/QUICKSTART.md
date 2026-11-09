@@ -25,13 +25,11 @@ Debian 12 自带的 `python3` 就是 3.11。
 ## 2. 安装系统依赖
 
     sudo apt update
-    sudo apt install -y \
-      python3 python3-venv python3-pip \
+    sudo apt install \
       pipewire-pulse pulseaudio-utils \
       libgl1 libegl1 libxkbcommon-x11-0 libxcb-cursor0 \
       libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
-      libxcb-shape0 libxcb-xinerama0 \
-      fonts-noto-cjk
+      libxcb-shape0 libxcb-xinerama0
 
 说明：
 
@@ -42,10 +40,10 @@ Debian 12 自带的 `python3` 就是 3.11。
 ## 3. 创建虚拟环境并安装 Python 依赖
 
     cd /path/to/project
-    python3 -m venv .venv
+    python3.12 -m venv .venv
     source .venv/bin/activate
-    python -m pip install -U pip
-    pip install -r requirements.txt
+    python3.12 -m pip install -U pip
+    pip3.12 install -r requirements.txt
 
 ## 4. 准备 GPU 运行时（CUDA / cuDNN）
 
@@ -56,7 +54,7 @@ Debian 12 自带的 `python3` 就是 3.11。
 `faster-whisper` 底层是 CTranslate2。CTranslate2 4.5 及以后通常要求
 CUDA 12 + cuDNN 9；更早的 4.x 可能要求 cuDNN 8。先看版本：
 
-    python -c "import ctranslate2; print(ctranslate2.__version__)"
+    python3.12 -c "import ctranslate2; print(ctranslate2.__version__)"
 
 如果 `nvidia-smi` 正常，但启动时报：
 
@@ -161,7 +159,7 @@ NVIDIA 官方 apt 源或 CUDA Toolkit 安装包都可以。
     # llama.cpp
     llama-server -m /path/to/qwen2.5-7b-instruct-q4_k_m.gguf \
       --host 127.0.0.1 --port 8000 -c 4096 -ngl 99
-
+    
     # vLLM
     vllm serve Qwen/Qwen2.5-7B-Instruct --host 127.0.0.1 --port 8000
 
@@ -203,26 +201,24 @@ Wayland 下如果字幕不置顶或点击穿透无效，可以试 X11 平台插�
 
     # 1) 系统依赖
     sudo apt update
-    sudo apt install -y \
-      python3 python3-venv python3-pip \
+    sudo apt install \
       pipewire-pulse pulseaudio-utils \
       libgl1 libegl1 libxkbcommon-x11-0 libxcb-cursor0 \
       libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
-      libxcb-shape0 libxcb-xinerama0 \
-      fonts-noto-cjk
-
+      libxcb-shape0 libxcb-xinerama0
+    
     # 2) Python 依赖
     cd /path/to/project
-    python3 -m venv .venv
+    python3.12 -m venv .venv
     source .venv/bin/activate
-    python -m pip install -U pip
-    pip install -r requirements.txt
-
+    python3.12 -m pip install -U pip
+    pip3.12 install -r requirements.txt
+    
     # 3) 确认音频
     pactl get-default-sink
-
+    
     # 4) 确认 LLM
     curl -s http://127.0.0.1:8000/v1/models
-
+    
     # 5) 运行
     python -m subtitle_app config.toml
