@@ -12,6 +12,10 @@
 `subtitle_app/pipeline.py` 和 `subtitle_app/app.py`，否则会遇到
 `last_text` 或 `push_subtitle` 参数不匹配的错误。
 
+> VAD 使用 Silero VAD v5，模型直接复用 faster-whisper 自带的那一份，
+> 因此**不需要**再单独安装 `silero-vad` 或 PyTorch。
+> 关键约束：`[audio].frame_ms` 必须是 32（16kHz 下 512 采样）。
+
 ## 1. requirements.txt 是什么
 
 它不是程序，而是 pip 依赖清单。每行一个包，`#` 开头是注释。
@@ -26,24 +30,28 @@ Debian 12 自带的 `python3` 就是 3.11。
 
     sudo apt update
     sudo apt install \
+      python3 python3-venv python3-pip \
       pipewire-pulse pulseaudio-utils \
       libgl1 libegl1 libxkbcommon-x11-0 libxcb-cursor0 \
       libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
-      libxcb-shape0 libxcb-xinerama0
+      libxcb-shape0 libxcb-xinerama0 \
+      fonts-noto-cjk
 
 说明：
 
 - `pactl` / `parec` 来自 `pulseaudio-utils`，PipeWire 环境下也需要它。
 - PyQt6 在 X11 下可能还需要一批 `libxcb-*`，上面已列出常用项。
 - `fonts-noto-cjk` 用于正常显示中文字幕。
+- Silero VAD 以 ONNX 形式随 `faster-whisper` 一起安装（后端是
+  `onnxruntime`），不再引入 PyTorch，pip 阶段体积已经很小。
 
 ## 3. 创建虚拟环境并安装 Python 依赖
 
     cd /path/to/project
-    python3.12 -m venv .venv
+    python3 -m venv .venv
     source .venv/bin/activate
-    python3.12 -m pip install -U pip
-    pip3.12 install -r requirements.txt
+    python -m pip install -U pip
+    pip install -r requirements.txt
 
 ## 4. 准备 GPU 运行时（CUDA / cuDNN）
 
@@ -54,7 +62,7 @@ Debian 12 自带的 `python3` 就是 3.11。
 `faster-whisper` 底层是 CTranslate2。CTranslate2 4.5 及以后通常要求
 CUDA 12 + cuDNN 9；更早的 4.x 可能要求 cuDNN 8。先看版本：
 
-    python3.12 -c "import ctranslate2; print(ctranslate2.__version__)"
+    python -c "import ctranslate2; print(ctranslate2.__version__)"
 
 如果 `nvidia-smi` 正常，但启动时报：
 
@@ -127,10 +135,14 @@ NVIDIA 官方 apt 源或 CUDA Toolkit 安装包都可以。
 | 配置项 | 说明 |
 | --- | --- |
 | `[audio].source` | monitor source；留空自动推导 |
+| `[audio].frame_ms` | 分帧长度；Silero VAD 要求 16kHz 下 32ms（512 采样） |
+| `[vad].threshold` | Silero 语音概率阈值（0~1），越大越保守 |
+| `[vad].min_speech_ms` | 起判语音的最短时长 |
+| `[vad].min_silence_ms` | 判定一句话结束的静音时长 |
 | `[stt].model` | `large-v3-turbo` / `small.en` / `base.en` |
 | `[stt].device` | `cuda` 或 `cpu` |
 | `[stt].compute_type` | GPU 用 `float16` 或 `int8_float16`，CPU 用 `int8` |
-| `[vad].aggressiveness` | 0–3，越大越激进；听不清人声时可降到 1 |
+| `[stt].vad_filter` | Whisper 内部再跑一遍 Silero 过滤；与外部 VAD 共用模型 |
 | `[translate].base_url` | 必须带 `/v1`，程序会追加 `/chat/completions` |
 | `[translate].model` | 必须与本地 LLM 服务 `/v1/models` 返回的 id 一致 |
 | `[ui].screen` | 显示到第几个显示器，从 0 开始 |
@@ -175,6 +187,7 @@ NVIDIA 官方 apt 源或 CUDA Toolkit 安装包都可以。
     python run.py config.toml
 
 首次运行会从 Hugging Face 下载 Whisper 模型到 `~/.cache/huggingface`，
+Silero VAD 的 ONNX 模型随 `faster-whisper` 包一起安装，无需额外下载。
 需要网络和磁盘空间。
 
 Wayland 下如果字幕不置顶或点击穿透无效，可以试 X11 平台插件：
@@ -188,11 +201,15 @@ Wayland 下如果字幕不置顶或点击穿透无效，可以试 X11 平台插�
 | `FileNotFoundError: 配置文件不存在` | 在项目根目录创建 `config.toml`，或传入正确路径 |
 | `未找到命令 parec/pactl` | `sudo apt install pulseaudio-utils` |
 | `无法获取默认 sink` | 检查 `systemctl --user status pipewire pipewire-pulse` 和 `pactl info` |
+| `Silero VAD ... frame_ms` 报错 | 把 `[audio].frame_ms` 设回 32（16kHz 下 512 采样） |
+| `加载内置 Silero VAD 失败` | 确认 `onnxruntime` 已装：`pip install onnxruntime` |
+| `调用 Silero VAD 失败` / 版本升级后报错 | faster-whisper 的 `vad` 接口有变动，见 `doc/IMPLEMENTATION_NOTES.md` 第 4 节 |
 | `AttributeError: ... last_text` | 使用本次修复后的 `pipeline.py` |
 | `TypeError: push_subtitle() ...` | 使用本次修复后的 `app.py` |
 | CUDA/cuDNN 加载失败 | 按第 4 节安装匹配版本，或先切 CPU |
 | 翻译请求失败/超时 | 检查 LLM 服务端口、`base_url`、`model`，必要时加大 `timeout` |
-| 一直没有字幕 | 确认系统确实在播放声音；把 `[vad].aggressiveness` 降到 1；看终端日志 |
+| 一直没有字幕 | 把 `[vad].threshold` 降到 0.35（更敏感）；先用 `parec` 验证 monitor 有数据 |
+| 切句位置偶尔抖动 | 把 `[stt].vad_filter` 设为 `false`，避免与外部 VAD 共用模型状态 |
 | 字幕不置顶/点击穿透 | Wayland compositor 限制，试 `QT_QPA_PLATFORM=xcb` 或 X11 会话 |
 | Qt 报 xcb 插件错误 | 安装第 2 节的 `libxcb-*`，或切换 `QT_QPA_PLATFORM` |
 | 显存不足 | `compute_type = "int8_float16"`，或换 `small.en` |
@@ -202,17 +219,19 @@ Wayland 下如果字幕不置顶或点击穿透无效，可以试 X11 平台插�
     # 1) 系统依赖
     sudo apt update
     sudo apt install \
+      python3 python3-venv python3-pip \
       pipewire-pulse pulseaudio-utils \
       libgl1 libegl1 libxkbcommon-x11-0 libxcb-cursor0 \
       libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
-      libxcb-shape0 libxcb-xinerama0
+      libxcb-shape0 libxcb-xinerama0 \
+      fonts-noto-cjk
     
     # 2) Python 依赖
     cd /path/to/project
-    python3.12 -m venv .venv
+    python3 -m venv .venv
     source .venv/bin/activate
-    python3.12 -m pip install -U pip
-    pip3.12 install -r requirements.txt
+    python -m pip install -U pip
+    pip install -r requirements.txt
     
     # 3) 确认音频
     pactl get-default-sink

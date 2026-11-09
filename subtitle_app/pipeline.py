@@ -68,6 +68,9 @@ class SubtitlePipeline:
                     last_sentence = self._handle(
                         segment, transcriber, translator, last_sentence
                     )
+                    # Silero 模型与 faster-whisper 的 vad_filter 共享，
+                    # 识别过程会改动其流式状态，这里复位以免影响后续帧
+                    segmenter.reset_model_state()
 
             tail = segmenter.flush()
             if tail is not None and not self._stop.is_set():

@@ -12,7 +12,8 @@ class AudioConfig:
     sample_rate: int = 16000
     channels: int = 1
     format: str = "s16le"
-    frame_ms: int = 30
+    # Silero VAD v5 在 16kHz 下要求每帧 512 采样 = 32ms
+    frame_ms: int = 32
     latency_msec: int = 200
     # 显式指定 monitor source；None 表示用默认 sink 自动推导
     source: str | None = None
@@ -20,7 +21,8 @@ class AudioConfig:
 
 @dataclass
 class VadConfig:
-    aggressiveness: int = 2
+    # Silero VAD 语音概率阈值：越大越保守
+    threshold: float = 0.5
     min_speech_ms: int = 250
     min_silence_ms: int = 500
     padding_ms: int = 200
