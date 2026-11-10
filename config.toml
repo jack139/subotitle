@@ -18,7 +18,7 @@ max_segment_ms = 8000
 
 [stt]
 # 显存不足可改 small.en / base.en
-model = "large-v3-turbo"
+model = "../../ASR-TTS/asr_models/faster-whisper-small.en"
 device = "cuda"
 # 显存紧张可用 "int8_float16"；CPU 回退用 "int8"
 compute_type = "float16"
@@ -34,7 +34,7 @@ log_prob_threshold = -1.0
 base_url = "http://127.0.0.1:8000/v1"
 api_key = "not-needed"
 # 必须与本地 LLM 服务 /v1/models 返回的 id 一致
-model = "qwen2.5-7b-instruct"
+model = "qwen3.5-2b"
 temperature = 0.2
 max_tokens = 512
 timeout = 30.0
