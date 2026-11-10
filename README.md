@@ -13,7 +13,7 @@
 
 - debian 12 `bookworm`
 - X11、 Qt6
-- CUDA，显存至少6G（含Qwen-2B-Q5KM）
+- CUDA，显存至少6G（faster-whisper使用 800M，Qwen-2B 使用 4G）
 
 
 ## 运行
