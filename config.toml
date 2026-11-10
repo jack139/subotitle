@@ -2,19 +2,27 @@
 sample_rate = 16000
 channels = 1
 format = "s16le"
-# Silero VAD v5 在 16kHz 下要求每帧 512 采样 = 32ms
+# 每帧长度。Whisper 只要求整段音频是 16kHz 单声道，
+# 这里只要保证 frame_ms 是 max_segment_ms 的整除因子即可。
 frame_ms = 32
 latency_msec = 200
 # 留空则自动用默认 sink 推导 <sink>.monitor
 # source = "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor"
 
 [vad]
-# Silero VAD 语音概率阈值：越大越保守
+# 这一节的参数全部传给 faster-whisper 内置的 Silero VAD filter。
+# 开关在 [stt].vad_filter；关掉后这些参数不生效。
+# 语音概率阈值：越大越保守
 threshold = 0.5
+# 少于该时长的语音片段会被丢弃
 min_speech_ms = 250
+# 静音超过该时长才认为一句话结束（越小切得越碎、延迟越低）
 min_silence_ms = 500
+# 每段语音前后补的静音，避免切掉字头字尾
 padding_ms = 200
-max_segment_ms = 8000
+# 送给 Whisper 的单个音频块最大长度。
+# 实际上决定了调用 Whisper 的频率，想降低延迟可以调到 4000 左右。
+max_segment_ms = 3200
 
 [stt]
 # 显存不足可改 small.en / base.en
@@ -24,6 +32,7 @@ device = "cuda"
 compute_type = "float16"
 language = "en"
 beam_size = 5
+# 启用 faster-whisper 自带的 Silero VAD filter，参数见 [vad]
 vad_filter = true
 condition_on_previous_text = false
 no_speech_threshold = 0.6
@@ -40,11 +49,11 @@ max_tokens = 512
 timeout = 30.0
 
 [ui]
-font_size = 28
+font_size = 24
 width_ratio = 0.8
-band_height = 220
-bottom_margin = 60
-max_lines = 3
+band_height = 150
+bottom_margin = 10
+max_lines = 2
 background = "rgba(0, 0, 0, 160)"
 text_color = "#ffffff"
 screen = 0

@@ -1,4 +1,4 @@
-"""faster-whisper 语音识别封装（GPU 友好）。"""
+"""faster-whisper 语音识别封装（GPU 友好），VAD 由模型自带的 Silero filter 完成。"""
 
 from __future__ import annotations
 
@@ -6,14 +6,29 @@ import logging
 
 import numpy as np
 
-from .config import SttConfig
+from .config import SttConfig, VadConfig
 
 log = logging.getLogger(__name__)
 
 
+def build_vad_parameters(cfg: VadConfig) -> dict:
+    """把 [vad] 配置翻译成 faster-whisper 的 VadOptions 字段。
+
+    传入的 key 必须是 VadOptions 的合法字段，否则 VadOptions(**...) 会报错。
+    """
+    return {
+        "threshold": cfg.threshold,
+        "min_speech_duration_ms": cfg.min_speech_ms,
+        "min_silence_duration_ms": cfg.min_silence_ms,
+        "speech_pad_ms": cfg.padding_ms,
+    }
+
+
 class Transcriber:
-    def __init__(self, cfg: SttConfig):
+    def __init__(self, cfg: SttConfig, vad_cfg: VadConfig | None = None):
         self.cfg = cfg
+        self.vad_cfg = vad_cfg or VadConfig()
+        self.vad_parameters = build_vad_parameters(self.vad_cfg)
 
         # 延迟导入，避免未安装 faster-whisper 时影响其它模块
         from faster_whisper import WhisperModel
@@ -36,6 +51,7 @@ class Transcriber:
             language=self.cfg.language,
             beam_size=self.cfg.beam_size,
             vad_filter=self.cfg.vad_filter,
+            vad_parameters=self.vad_parameters if self.cfg.vad_filter else None,
             condition_on_previous_text=self.cfg.condition_on_previous_text,
         )
 

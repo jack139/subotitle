@@ -1,4 +1,4 @@
-"""流水线：捕获 → VAD 分段 → STT → 翻译 → 回调。"""
+"""流水线：捕获 → 定长分块 → STT（内置 VAD）→ 翻译 → 回调。"""
 
 from __future__ import annotations
 
@@ -6,11 +6,13 @@ import logging
 import threading
 from typing import Callable
 
+import numpy as np
+
 from .audio_capture import AudioCapture
 from .config import AppConfig
 from .stt import Transcriber
 from .translator import Translator
-from .vad import VadSegmenter
+from .vad import AudioChunker
 
 log = logging.getLogger(__name__)
 
@@ -51,28 +53,25 @@ class SubtitlePipeline:
         last_sentence: str | None = None
 
         try:
-            segmenter = VadSegmenter(
-                self.cfg.vad,
-                self.cfg.audio.sample_rate,
-                self.cfg.audio.frame_ms,
+            chunker = AudioChunker(
+                sample_rate=self.cfg.audio.sample_rate,
+                frame_ms=self.cfg.audio.frame_ms,
+                max_segment_ms=self.cfg.vad.max_segment_ms,
             )
-            transcriber = Transcriber(self.cfg.stt)
+            transcriber = Transcriber(self.cfg.stt, self.cfg.vad)
             translator = Translator(self.cfg.translate)
 
             for frame in capture.frames():
                 if self._stop.is_set():
                     break
-                for segment in segmenter.process(frame):
+                for segment in chunker.process(frame):
                     if self._stop.is_set():
                         break
                     last_sentence = self._handle(
                         segment, transcriber, translator, last_sentence
                     )
-                    # Silero 模型与 faster-whisper 的 vad_filter 共享，
-                    # 识别过程会改动其流式状态，这里复位以免影响后续帧
-                    segmenter.reset_model_state()
 
-            tail = segmenter.flush()
+            tail = chunker.flush()
             if tail is not None and not self._stop.is_set():
                 self._handle(tail, transcriber, translator, last_sentence)
 
@@ -86,7 +85,7 @@ class SubtitlePipeline:
 
     def _handle(
         self,
-        audio,
+        audio: np.ndarray,
         transcriber: Transcriber,
         translator: Translator,
         context: str | None,

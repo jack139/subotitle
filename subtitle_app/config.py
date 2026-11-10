@@ -12,7 +12,8 @@ class AudioConfig:
     sample_rate: int = 16000
     channels: int = 1
     format: str = "s16le"
-    # Silero VAD v5 在 16kHz 下要求每帧 512 采样 = 32ms
+    # 每帧长度。Whisper 只要求整段音频是 16kHz 单声道，
+    # 这里只要保证 frame_ms 是 max_segment_ms 的整除因子即可。
     frame_ms: int = 32
     latency_msec: int = 200
     # 显式指定 monitor source；None 表示用默认 sink 自动推导
@@ -21,11 +22,17 @@ class AudioConfig:
 
 @dataclass
 class VadConfig:
-    # Silero VAD 语音概率阈值：越大越保守
+    # 本节参数全部传给 faster-whisper 内置的 Silero VAD filter。
+    # 开关在 [stt].vad_filter；关掉后这些参数不生效。
+    # 语音概率阈值：越大越保守
     threshold: float = 0.5
+    # 少于该时长的语音片段会被丢弃
     min_speech_ms: int = 250
+    # 静音超过该时长才认为一句话结束（越小切得越碎、延迟越低）
     min_silence_ms: int = 500
+    # 每段语音前后补的静音，避免切掉字头字尾
     padding_ms: int = 200
+    # 送给 Whisper 的单个音频块最大长度，实际决定调用 Whisper 的频率
     max_segment_ms: int = 8000
 
 
@@ -36,6 +43,7 @@ class SttConfig:
     compute_type: str = "float16"
     language: str = "en"
     beam_size: int = 5
+    # 启用 faster-whisper 自带的 Silero VAD filter，参数见 [vad]
     vad_filter: bool = True
     condition_on_previous_text: bool = False
     no_speech_threshold: float = 0.6
