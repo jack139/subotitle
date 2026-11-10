@@ -1,0 +1,20 @@
+# Python 依赖清单：pip install -r requirements.txt
+# 需要 Python 3.11+（config.py 使用了标准库 tomllib；Debian 12 默认即 3.11）
+
+# 语音识别。GPU 推理需要匹配的 CUDA/cuDNN，见 doc/QUICKSTART.md
+# faster-whisper 自带 Silero VAD v5（ONNX），无需再安装 silero-vad / PyTorch
+faster-whisper>=1.1.0,<2
+# 内置 Silero VAD 的运行后端，faster-whisper 已依赖它，这里显式列出便于理解
+onnxruntime>=1.14,<2
+numpy>=1.26,<3
+
+# 通过 HTTP 直连 OpenAI 兼容接口，不使用 openai 包
+requests>=2.31,<3
+
+# 字幕 UI
+PyQt6>=6.6,<7
+
+# 可选：系统没有 CUDA/cuDNN 时，可尝试用 pip 提供运行时。
+# 版本必须与 ctranslate2 匹配，详见 doc/QUICKSTART.md。
+# nvidia-cublas-cu12
+# nvidia-cudnn-cu12
