@@ -49,10 +49,10 @@ max_tokens = 512
 timeout = 30.0
 
 [ui]
-font_size = 24
-width_ratio = 0.8
+font_size = 32
+width_ratio = 0.9
 band_height = 150
-bottom_margin = 10
+bottom_margin = 30
 max_lines = 2
 background = "rgba(0, 0, 0, 160)"
 text_color = "#ffffff"
